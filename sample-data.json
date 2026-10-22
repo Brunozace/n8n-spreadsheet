@@ -1,0 +1,12 @@
+[
+  {"transaction_id":"V001","product":"Café","quantity":2,"unit_price_clp":2500},
+  {"transaction_id":"V002","product":"Pan amasado","quantity":4,"unit_price_clp":500},
+  {"transaction_id":"V003","product":"Almuerzo","quantity":3,"unit_price_clp":6500},
+  {"transaction_id":"V004","product":"Jugo","quantity":2,"unit_price_clp":2000},
+  {"transaction_id":"V005","product":"Torta","quantity":1,"unit_price_clp":18000},
+  {"transaction_id":"V006","product":"Té","quantity":3,"unit_price_clp":1500},
+  {"transaction_id":"V007","product":"Café","quantity":1,"unit_price_clp":2500},
+  {"transaction_id":"V007","product":"Café","quantity":1,"unit_price_clp":2500},
+  {"transaction_id":"V009","product":"Sándwich","quantity":2,"unit_price_clp":null},
+  {"transaction_id":"V010","product":"Jugo","quantity":-1,"unit_price_clp":2000}
+]

@@ -1,0 +1,31 @@
+node_modules/
+.env
+.env.*
+!.env.example
+secrets/
+backups/
+uploads/
+results/
+tmp/
+.tmp/
+.test-runtime/
+test-artifacts/
+artifacts/
+coverage/
+*.log
+*.db
+*.sqlite*
+*.xlsx
+!sample-sales.xlsx
+!sample-sales - Copy.xlsx
+!public/template-sales.xlsx
+!public/sample-sales.xlsx
+*.pem
+*.key
+.DS_Store
+Thumbs.db
+# Original local n8n exports can include instance metadata and credentials.
+# Publish the credential-free 01/02/03/04 workflow files instead.
+/02 - Upload a sales spreadsheet.json
+/workflow.json
+/workflow/.json

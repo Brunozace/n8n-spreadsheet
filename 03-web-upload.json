@@ -1,0 +1,101 @@
+{
+  "id": "salesWebPilotV1",
+  "name": "03 - Protected sales web pilot",
+  "active": false,
+  "nodes": [
+    {
+      "id": "bed60357-9916-46df-b945-603e28243be2",
+      "name": "Private website request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        240
+      ],
+      "webhookId": "37d6d8d5-0a83-46e5-974c-983229dbdc3c",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sales-web",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "notes": "Bind a Header Auth credential: Name X-Pilot-Key; Value must match N8N_WEBHOOK_SECRET. No credential or secret is included in this export. Keep the n8n editor private.",
+      "notesInFlow": true
+    },
+    {
+      "id": "fb10e1c2-5d11-4341-9486-3ef49b61b487",
+      "name": "Check sales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "function processSales(rows) {\n  const headers = ['transaction_id', 'product', 'quantity', 'unit_price_clp'];\n  if (!Array.isArray(rows) || !rows.length || rows.every(r => !Object.keys(r || {}).length)) {\n    throw new Error('No sales rows found. Use the Sales sheet with headers in row 1.');\n  }\n  if (rows.length > 10000) throw new Error('Starter limit: 10,000 rows per file.');\n  const keys = new Set(rows.flatMap(r => Object.keys(r || {})));\n  const missing = headers.filter(h => !keys.has(h));\n  if (missing.length) throw new Error('Missing column(s): ' + missing.join(', '));\n  const text = v => typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isSafeInteger(v) ? String(v) : '';\n  const integer = v => {\n    if (typeof v === 'number') return Number.isSafeInteger(v) ? v : null;\n    if (typeof v !== 'string' || !/^-?\\d+$/.test(v.trim())) return null;\n    const n = Number(v.trim());\n    return Number.isSafeInteger(n) ? n : null;\n  };\n  const counts = new Map();\n  for (const row of rows) {\n    const id = text(row.transaction_id).toUpperCase();\n    if (id) counts.set(id, (counts.get(id) || 0) + 1);\n  }\n  const valid = [], review = [];\n  let total = 0;\n  rows.forEach((row, i) => {\n    const id = text(row.transaction_id), product = text(row.product);\n    const quantity = integer(row.quantity), price = integer(row.unit_price_clp);\n    const issues = [];\n    if (!id) issues.push('Missing or invalid transaction ID');\n    if (id && counts.get(id.toUpperCase()) > 1) issues.push('Duplicate transaction ID: review all occurrences');\n    if (!product) issues.push('Missing or invalid product');\n    if (quantity === null || quantity <= 0) issues.push('Quantity must be a positive whole number');\n    if (price === null || price < 0) issues.push('Price must be a nonnegative whole CLP amount');\n    const lineTotal = quantity !== null && price !== null ? quantity * price : null;\n    if (lineTotal !== null && !Number.isSafeInteger(lineTotal)) issues.push('Line total exceeds safe integer range');\n    // Input record ordinal, not Excel row number: extraction may skip empty rows.\n    if (issues.length) review.push({input_record: i + 1, transaction_id: id, issues: issues.join('; '), original_row_json: JSON.stringify(row)});\n    else {\n      if (!Number.isSafeInteger(total + lineTotal)) throw new Error('Total exceeds safe integer range. No report produced.');\n      total += lineTotal;\n      valid.push({input_record: i + 1, transaction_id: id, product, quantity, unit_price_clp: price, line_total_clp: lineTotal});\n    }\n  });\n  return {valid, review, summary: {\n    input_records: rows.length, valid_records: valid.length, review_records: review.length,\n    valid_sales_total_clp: total, currency: 'CLP',\n    status: review.length ? 'INCOMPLETE: review rows excluded from total' : 'COMPLETE',\n    calculation: 'quantity x unit_price_clp; no tax, discounts or refunds added'\n  }};\n}\n\nconst body = $input.first().json.body;\nif (!body || typeof body.requestId !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(body.requestId) || !Array.isArray(body.rows) || body.rows.some(row => !row || typeof row !== 'object' || Array.isArray(row))) {\n  throw new Error('Invalid website request');\n}\nreturn [{ json: { requestId: body.requestId, result: processSales(body.rows) } }];"
+      },
+      "notes": "processSales is copied unchanged from core.mjs. Duplicate checks apply only within this upload."
+    },
+    {
+      "id": "cff98327-3f16-47dd-873b-e5331c3d1261",
+      "name": "Return completed results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        640,
+        240
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 200,
+          "enableStreaming": false,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Private website request": {
+      "main": [
+        [
+          {
+            "node": "Check sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check sales": {
+      "main": [
+        [
+          {
+            "node": "Return completed results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 60,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": []
+}

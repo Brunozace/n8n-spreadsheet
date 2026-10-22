@@ -1,0 +1,230 @@
+{
+  "name": "01 - Sales automation demo",
+  "nodes": [
+    {
+      "id": "f4264d5a-0f0b-4210-8a6b-92dafa7f98da",
+      "name": "Start demo",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "3e58fab6-2d05-4dba-b2c8-50e940b53f5d",
+      "name": "Practice sales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{\"transaction_id\":\"V001\",\"product\":\"Café\",\"quantity\":2,\"unit_price_clp\":2500},{\"transaction_id\":\"V002\",\"product\":\"Pan amasado\",\"quantity\":4,\"unit_price_clp\":500},{\"transaction_id\":\"V003\",\"product\":\"Almuerzo\",\"quantity\":3,\"unit_price_clp\":6500},{\"transaction_id\":\"V004\",\"product\":\"Jugo\",\"quantity\":2,\"unit_price_clp\":2000},{\"transaction_id\":\"V005\",\"product\":\"Torta\",\"quantity\":1,\"unit_price_clp\":18000},{\"transaction_id\":\"V006\",\"product\":\"Té\",\"quantity\":3,\"unit_price_clp\":1500},{\"transaction_id\":\"V007\",\"product\":\"Café\",\"quantity\":1,\"unit_price_clp\":2500},{\"transaction_id\":\"V007\",\"product\":\"Café\",\"quantity\":1,\"unit_price_clp\":2500},{\"transaction_id\":\"V009\",\"product\":\"Sándwich\",\"quantity\":2,\"unit_price_clp\":null},{\"transaction_id\":\"V010\",\"product\":\"Jugo\",\"quantity\":-1,\"unit_price_clp\":2000}].map(row => ({json:row}));"
+      }
+    },
+    {
+      "id": "07c06ff8-e5cd-4ee7-b475-eb067a6e7267",
+      "name": "Check sales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "function processSales(rows) {\n  const headers = ['transaction_id', 'product', 'quantity', 'unit_price_clp'];\n  if (!Array.isArray(rows) || !rows.length || rows.every(r => !Object.keys(r || {}).length)) {\n    throw new Error('No sales rows found. Use the Sales sheet with headers in row 1.');\n  }\n  if (rows.length > 10000) throw new Error('Starter limit: 10,000 rows per file.');\n  const keys = new Set(rows.flatMap(r => Object.keys(r || {})));\n  const missing = headers.filter(h => !keys.has(h));\n  if (missing.length) throw new Error('Missing column(s): ' + missing.join(', '));\n  const text = v => typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isSafeInteger(v) ? String(v) : '';\n  const integer = v => {\n    if (typeof v === 'number') return Number.isSafeInteger(v) ? v : null;\n    if (typeof v !== 'string' || !/^-?\\d+$/.test(v.trim())) return null;\n    const n = Number(v.trim());\n    return Number.isSafeInteger(n) ? n : null;\n  };\n  const counts = new Map();\n  for (const row of rows) {\n    const id = text(row.transaction_id).toUpperCase();\n    if (id) counts.set(id, (counts.get(id) || 0) + 1);\n  }\n  const valid = [], review = [];\n  let total = 0;\n  rows.forEach((row, i) => {\n    const id = text(row.transaction_id), product = text(row.product);\n    const quantity = integer(row.quantity), price = integer(row.unit_price_clp);\n    const issues = [];\n    if (!id) issues.push('Missing or invalid transaction ID');\n    if (id && counts.get(id.toUpperCase()) > 1) issues.push('Duplicate transaction ID: review all occurrences');\n    if (!product) issues.push('Missing or invalid product');\n    if (quantity === null || quantity <= 0) issues.push('Quantity must be a positive whole number');\n    if (price === null || price < 0) issues.push('Price must be a nonnegative whole CLP amount');\n    const lineTotal = quantity !== null && price !== null ? quantity * price : null;\n    if (lineTotal !== null && !Number.isSafeInteger(lineTotal)) issues.push('Line total exceeds safe integer range');\n    // Input record ordinal, not Excel row number: extraction may skip empty rows.\n    if (issues.length) review.push({input_record: i + 1, transaction_id: id, issues: issues.join('; '), original_row_json: JSON.stringify(row)});\n    else {\n      if (!Number.isSafeInteger(total + lineTotal)) throw new Error('Total exceeds safe integer range. No report produced.');\n      total += lineTotal;\n      valid.push({input_record: i + 1, transaction_id: id, product, quantity, unit_price_clp: price, line_total_clp: lineTotal});\n    }\n  });\n  return {valid, review, summary: {\n    input_records: rows.length, valid_records: valid.length, review_records: review.length,\n    valid_sales_total_clp: total, currency: 'CLP',\n    status: review.length ? 'INCOMPLETE: review rows excluded from total' : 'COMPLETE',\n    calculation: 'quantity x unit_price_clp; no tax, discounts or refunds added'\n  }};\n}\nreturn [{json: processSales($input.all().map(item => item.json))}];"
+      }
+    },
+    {
+      "id": "9529fd25-6300-4e79-919f-75c05f3c6726",
+      "name": "Valid sales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        80
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.first().json.valid;\nreturn (rows.length ? rows : [{status:'NO_ROWS', note:'This report contains no valid records.'}]).map(row => ({json:row}));"
+      }
+    },
+    {
+      "id": "611f4692-5349-4b63-9abf-9ec54870a51c",
+      "name": "Download Valid sales",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        80
+      ],
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "valid.xlsx",
+          "headerRow": true,
+          "sheetName": "Valid sales",
+          "compression": true
+        }
+      }
+    },
+    {
+      "id": "6b9e612a-0673-44eb-b9c9-1021bfa53f5f",
+      "name": "Needs review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.first().json.review;\nreturn (rows.length ? rows : [{status:'NO_ROWS', note:'This report contains no review records.'}]).map(row => ({json:row}));"
+      }
+    },
+    {
+      "id": "22616339-dd9d-4417-aaf4-792289674b03",
+      "name": "Download Needs review",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "review.xlsx",
+          "headerRow": true,
+          "sheetName": "Needs review",
+          "compression": true
+        }
+      }
+    },
+    {
+      "id": "5eed6ec1-e021-4ab5-901d-5bf6934b72af",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        520
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json: $input.first().json.summary}];"
+      }
+    },
+    {
+      "id": "d8f90fcc-9142-4a04-9af3-9f307a21df9d",
+      "name": "Download Summary",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        520
+      ],
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "summary.xlsx",
+          "headerRow": true,
+          "sheetName": "Summary",
+          "compression": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start demo": {
+      "main": [
+        [
+          {
+            "node": "Practice sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Practice sales": {
+      "main": [
+        [
+          {
+            "node": "Check sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check sales": {
+      "main": [
+        [
+          {
+            "node": "Valid sales",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Needs review",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid sales": {
+      "main": [
+        [
+          {
+            "node": "Download Valid sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs review": {
+      "main": [
+        [
+          {
+            "node": "Download Needs review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary": {
+      "main": [
+        [
+          {
+            "node": "Download Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

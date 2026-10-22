@@ -1,0 +1,13 @@
+{
+    email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    reverse_proxy web:3000 {
+        transport http {
+            response_header_timeout 90s
+        }
+    }
+    # Access logs intentionally disabled: no request bodies or user identifiers.
+}

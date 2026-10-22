@@ -1,0 +1,21 @@
+.git
+node_modules
+.env
+.env.*
+secrets
+backups
+uploads
+results
+tmp
+.tmp
+.test-runtime
+test-artifacts
+artifacts
+coverage
+*.log
+*.db
+*.sqlite*
+*.pem
+*.key
+sample-sales - Copy.xlsx
+*.xlsx

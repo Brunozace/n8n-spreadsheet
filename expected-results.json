@@ -1,0 +1,87 @@
+{
+  "valid": [
+    {
+      "input_record": 1,
+      "transaction_id": "V001",
+      "product": "Café",
+      "quantity": 2,
+      "unit_price_clp": 2500,
+      "line_total_clp": 5000
+    },
+    {
+      "input_record": 2,
+      "transaction_id": "V002",
+      "product": "Pan amasado",
+      "quantity": 4,
+      "unit_price_clp": 500,
+      "line_total_clp": 2000
+    },
+    {
+      "input_record": 3,
+      "transaction_id": "V003",
+      "product": "Almuerzo",
+      "quantity": 3,
+      "unit_price_clp": 6500,
+      "line_total_clp": 19500
+    },
+    {
+      "input_record": 4,
+      "transaction_id": "V004",
+      "product": "Jugo",
+      "quantity": 2,
+      "unit_price_clp": 2000,
+      "line_total_clp": 4000
+    },
+    {
+      "input_record": 5,
+      "transaction_id": "V005",
+      "product": "Torta",
+      "quantity": 1,
+      "unit_price_clp": 18000,
+      "line_total_clp": 18000
+    },
+    {
+      "input_record": 6,
+      "transaction_id": "V006",
+      "product": "Té",
+      "quantity": 3,
+      "unit_price_clp": 1500,
+      "line_total_clp": 4500
+    }
+  ],
+  "review": [
+    {
+      "input_record": 7,
+      "transaction_id": "V007",
+      "issues": "Duplicate transaction ID: review all occurrences",
+      "original_row_json": "{\"transaction_id\":\"V007\",\"product\":\"Café\",\"quantity\":1,\"unit_price_clp\":2500}"
+    },
+    {
+      "input_record": 8,
+      "transaction_id": "V007",
+      "issues": "Duplicate transaction ID: review all occurrences",
+      "original_row_json": "{\"transaction_id\":\"V007\",\"product\":\"Café\",\"quantity\":1,\"unit_price_clp\":2500}"
+    },
+    {
+      "input_record": 9,
+      "transaction_id": "V009",
+      "issues": "Price must be a nonnegative whole CLP amount",
+      "original_row_json": "{\"transaction_id\":\"V009\",\"product\":\"Sándwich\",\"quantity\":2,\"unit_price_clp\":null}"
+    },
+    {
+      "input_record": 10,
+      "transaction_id": "V010",
+      "issues": "Quantity must be a positive whole number",
+      "original_row_json": "{\"transaction_id\":\"V010\",\"product\":\"Jugo\",\"quantity\":-1,\"unit_price_clp\":2000}"
+    }
+  ],
+  "summary": {
+    "input_records": 10,
+    "valid_records": 6,
+    "review_records": 4,
+    "valid_sales_total_clp": 53000,
+    "currency": "CLP",
+    "status": "INCOMPLETE: review rows excluded from total",
+    "calculation": "quantity x unit_price_clp; no tax, discounts or refunds added"
+  }
+}

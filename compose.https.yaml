@@ -1,0 +1,39 @@
+# Optional deployment overlay. Do not run until a host and domain are chosen.
+services:
+  web:
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: https://${DOMAIN:?Set DOMAIN before using the HTTPS overlay}
+      SECURE_COOKIE: "true"
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN before using the HTTPS overlay}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL before using the HTTPS overlay}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - frontend
+    depends_on:
+      web:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+volumes:
+  caddy_data:
+  caddy_config:
